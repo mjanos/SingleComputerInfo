@@ -1,0 +1,7 @@
+__pycache__
+*.xlsx
+build
+dist
+PsExec.exe
+loading2.gif.old
+setup_single.py

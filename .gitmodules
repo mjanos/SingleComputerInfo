@@ -1,0 +1,3 @@
+[submodule "ComputerInfoSharedResources"]
+	path = ComputerInfoSharedResources
+	url = https://github.com/mjanos/ComputerInfoSharedResources.git
