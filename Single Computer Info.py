@@ -27,6 +27,7 @@ from ComputerInfoSharedResources.CICustomWidgets import LinkLabel, CustomDialog,
 from ComputerInfoSharedResources.dynamic_forms.forms import DynamicForm
 from ComputerInfoSharedResources.dynamic_forms.models import DynamicModel
 from ComputerInfoSharedResources.CITime import format_date
+from ComputerInfoSharedResources.CIPathFixes import exe_path
 
 global_blue = "#3366cc"
 global_green = "#00cc00"
@@ -979,6 +980,7 @@ if __name__ == "__main__":
     ico_path = ""
     try:
         ico_path = exe_path(__file__)
+        print(ico_path)
 
         if not os.path.exists(os.getenv("APPDATA") + '\\Single Computer Info'):
             os.makedirs(os.getenv("APPDATA") + '\\Single Computer Info')
