@@ -27,7 +27,6 @@ from ComputerInfoSharedResources.CICustomWidgets import LinkLabel, CustomDialog,
 from ComputerInfoSharedResources.dynamic_forms.forms import DynamicForm
 from ComputerInfoSharedResources.dynamic_forms.models import DynamicModel
 from ComputerInfoSharedResources.CITime import format_date
-from ComputerInfoSharedResources.CIPathFixes import exe_path
 
 global_blue = "#3366cc"
 global_green = "#00cc00"
@@ -468,7 +467,11 @@ class OutputComputer(QFrame):
             self.small_loading.setVisible(False)
 
     def remote_cmd(self):
-        res_path = exe_path(__file__)
+        res_path = ""
+        if hasattr(sys, 'frozen'):
+            res_path = sys.executable
+        else:
+            res_path = sys.argv[0]
         #print("start cmd /k '" + os.path.dirname(res_path) + "\\psexec.exe' \\\\" + self.comp_obj.input_name + " cmd")
         os.system("start cmd /k \"" + os.path.dirname(res_path) + "\\psexec.exe\" \\\\" + self.comp_obj.input_name + " cmd")
 
@@ -979,7 +982,10 @@ class OutputComputer(QFrame):
 if __name__ == "__main__":
     ico_path = ""
     try:
-        ico_path = exe_path(__file__)
+        if hasattr(sys,'frozen'):
+            ico_path = sys.executable
+        else:
+            ico_path = sys.argv[0]
         print(ico_path)
 
         if not os.path.exists(os.getenv("APPDATA") + '\\Single Computer Info'):
