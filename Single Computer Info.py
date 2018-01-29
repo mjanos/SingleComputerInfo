@@ -469,10 +469,10 @@ class OutputComputer(QFrame):
     def remote_cmd(self):
         res_path = ""
         if hasattr(sys, 'frozen'):
-            res_path = sys.executable
+            res_path = os.path.realpath(sys.executable)
         else:
-            res_path = sys.argv[0]
-        #print("start cmd /k '" + os.path.dirname(res_path) + "\\psexec.exe' \\\\" + self.comp_obj.input_name + " cmd")
+            res_path = os.path.realpath(sys.argv[0])
+        
         os.system("start cmd /k \"" + os.path.dirname(res_path) + "\\psexec.exe\" \\\\" + self.comp_obj.input_name + " cmd")
 
     @pyqtSlot()
