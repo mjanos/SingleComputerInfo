@@ -23,7 +23,7 @@ from ComputerInfoSharedResources.CISettings import Settings
 from ComputerInfoSharedResources.CIForms import AuthenticationForm, FileForm
 from ComputerInfoSharedResources.CIColor import generate_color,generate_text,rgb_to_hex
 from ComputerInfoSharedResources.CITime import format_date
-from ComputerInfoSharedResources.CICustomWidgets import LinkLabel, CustomDialog, DialogTable, CustomDataLabel
+from ComputerInfoSharedResources.CICustomWidgets import LinkLabel, CustomDialog, DialogTable, CustomDataLabel, CustomLineEdit
 from ComputerInfoSharedResources.dynamic_forms.forms import DynamicForm
 from ComputerInfoSharedResources.dynamic_forms.models import DynamicModel
 from ComputerInfoSharedResources.CITime import format_date
@@ -58,6 +58,7 @@ class GenericErroringWorker(GenericWMIWorker):
         pythoncom.CoUninitialize()
         self.finished.emit(str(retval))
 
+
 """
 Main window for getting info from single computers
 """
@@ -73,13 +74,36 @@ class SinglePCApp(QMainWindow):
         self.hosts_list = {}
         self.debug = debug
         self.link_color = "blue"
+        self.recent_computers = []
 
         super().__init__(parent)
 
+        self.get_recent_computers()
         self.createWidgets()
 
         if self.start_name:
             self.submit_btn.click()
+
+    def get_recent_computers(self):
+        if os.path.exists(os.getenv("APPDATA") + '\\Single Computer Info\\history.cfg'):
+            with open(os.getenv("APPDATA") + '\\Single Computer Info\\history.cfg','r') as f:
+                for line in f:
+                    self.recent_computers.append(line.strip())
+        else:
+            open(os.getenv("APPDATA") + '\\Single Computer Info\\history.cfg','w').close()
+
+    def write_recent_computers(self):
+        temp_list = self.recent_computers
+        if os.path.exists(os.getenv("APPDATA") + '\\Single Computer Info\\history.cfg'):
+            with open(os.getenv("APPDATA") + '\\Single Computer Info\\history.cfg','r') as f:
+                for line in f:
+                    if not line.upper().strip() in (temp_comp.upper().strip() for temp_comp in temp_list) and line.strip():
+                        temp_list.append(line.upper().strip())
+
+        with open(os.getenv("APPDATA") + '\\Single Computer Info\\history.cfg','w') as f:
+            for t in temp_list[:50]:
+                f.write(t.upper().strip() + "\n")
+
 
     def createWidgets(self):
         """Creates initial widgets for main window and adds keyboard shortcuts"""
@@ -119,7 +143,7 @@ class SinglePCApp(QMainWindow):
         self.subtitle.setAlignment(Qt.AlignCenter)
         if not self.manual_user:
             self.subtitle.hide()
-        self.inbox = QLineEdit(self.containerWidget)
+        self.inbox = CustomLineEdit(self.containerWidget,scroll_list=self.recent_computers)
         self.inbox.setPlaceholderText("Type Computer Name Here")
         self.inbox.setClearButtonEnabled(True)
         self.inbox.returnPressed.connect(self.get_computer_names)
@@ -178,9 +202,19 @@ class SinglePCApp(QMainWindow):
         self.programs_shortcut = QShortcut(QKeySequence("Ctrl+4"),self)
         self.remotecmd_shortcut = QShortcut(QKeySequence("Ctrl+R"),self)
 
+    def test_press(self):
+        print("keypressed")
+
+
     def get_computer_names(self):
         self.submit_btn.setEnabled(False)
         computer_name = self.inbox.text().strip()
+        if computer_name.upper().strip() in (recent_comp.upper().strip() for recent_comp in self.recent_computers):
+            self.recent_computers.remove(computer_name.upper().strip())
+
+        self.recent_computers = [computer_name.upper().strip()] + self.recent_computers
+        self.write_recent_computers()
+        self.inbox.update_list(self.recent_computers)
         if computer_name:
             if self.manual_user and self.manual_pass:
                 c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user=self.manual_user, manual_pass=self.manual_pass,debug=self.debug)
@@ -472,7 +506,7 @@ class OutputComputer(QFrame):
             res_path = os.path.realpath(sys.executable)
         else:
             res_path = os.path.realpath(sys.argv[0])
-        
+
         os.system("start cmd /k \"" + os.path.dirname(res_path) + "\\psexec.exe\" \\\\" + self.comp_obj.input_name + " cmd")
 
     @pyqtSlot()
@@ -986,7 +1020,6 @@ if __name__ == "__main__":
             ico_path = sys.executable
         else:
             ico_path = sys.argv[0]
-        print(ico_path)
 
         if not os.path.exists(os.getenv("APPDATA") + '\\Single Computer Info'):
             os.makedirs(os.getenv("APPDATA") + '\\Single Computer Info')
