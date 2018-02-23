@@ -202,9 +202,6 @@ class SinglePCApp(QMainWindow):
         self.programs_shortcut = QShortcut(QKeySequence("Ctrl+4"),self)
         self.remotecmd_shortcut = QShortcut(QKeySequence("Ctrl+R"),self)
 
-    def test_press(self):
-        print("keypressed")
-
 
     def get_computer_names(self):
         self.submit_btn.setEnabled(False)
@@ -416,6 +413,12 @@ class OutputComputer(QFrame):
         self.progthread.start()
         self.progworker.finished.connect(self.program_window)
 
+        self.patchworker = GenericWMIWorker(self.comp_obj.get_patches)
+        self.patchthread = QThread()
+        self.patchworker.moveToThread(self.patchthread)
+        self.patchthread.start()
+        self.patchworker.finished.connect(self.patch_window)
+
         self.printworker = GenericWMIWorker(self.comp_obj.get_printers)
         self.printthread = QThread()
         self.printworker.moveToThread(self.printthread)
@@ -613,6 +616,55 @@ class OutputComputer(QFrame):
                     i+=1
         find_text("",table,programs_list)
         searchbox.textChanged.connect(lambda:find_text(searchbox.text(),table,programs_list))
+        table.resizeColumnsToContents()
+        top.show()
+        top.activateWindow()
+        searchbox.setFocus()
+        self.loading_queue.decrement()
+        if self.loading_queue.get() <= 0:
+            self.small_loading.setVisible(False)
+
+    @pyqtSlot()
+    def patch_window(self):
+        patches_list = list(set(self.comp_obj.patches_queue.get()))
+        patches_list.sort(key=operator.attrgetter("date"),reverse=False)
+        top = CustomDialog(self)
+        top.setWindowTitle("Installed Patches on %s" % self.comp_obj.input_name)
+
+        top_layout= QVBoxLayout()
+        top.setLayout(top_layout)
+        searchbox = QLineEdit()
+
+        searchbox.setPlaceholderText("Search Patches")
+        searchbox.setClearButtonEnabled(True)
+
+        table = DialogTable(top,['Description','KB','InstalledOn'])
+
+        top_layout.addWidget(searchbox)
+        top_layout.addWidget(table)
+
+        def find_text(search_term,table,patches_list):
+            table.clearContents()
+            table.setRowCount(0)
+            table.setRowCount(len(patches_list))
+            i=0
+            for p in patches_list:
+                if not search_term or search_term.lower().strip() in p.kb.lower().strip():
+                    table.setRowCount(i+1)
+                    description_item = QTableWidgetItem(p.description)
+                    description_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                    table.setItem(i,0,description_item)
+
+                    kb_item = QTableWidgetItem(p.kb)
+                    kb_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                    table.setItem(i,1,kb_item)
+
+                    date_item = QTableWidgetItem(format_date(p.date))
+                    date_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                    table.setItem(i,2,date_item)
+                    i+=1
+        find_text("",table,patches_list)
+        searchbox.textChanged.connect(lambda:find_text(searchbox.text(),table,patches_list))
         table.resizeColumnsToContents()
         top.show()
         top.activateWindow()
@@ -959,6 +1011,11 @@ class OutputComputer(QFrame):
             self.get_programs_action.triggered.connect(self.progworker.startWork)
             self.get_programs_action.triggered.connect(self.set_loading_queue)
             self.moreinfogroup.addAction(self.get_programs_action)
+
+            self.get_patches_action = QAction("Get Patches")
+            self.get_patches_action.triggered.connect(self.patchworker.startWork)
+            self.get_patches_action.triggered.connect(self.set_loading_queue)
+            self.moreinfogroup.addAction(self.get_patches_action)
 
             self.moreinfobtn.setMenu(self.moreinfogroup)
             self.default_info_opener = QAction("Get More Info")
