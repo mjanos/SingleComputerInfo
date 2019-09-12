@@ -13,6 +13,7 @@ import ctypes
 import argparse
 import socket
 from pathlib import Path
+import logging
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QAction, QLabel, QBoxLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QPlainTextEdit, QPushButton, QProgressBar, QTabWidget, QFileDialog, QMessageBox, QScrollArea, QStatusBar, QDialog, QTableWidget, QTableWidgetItem, QSplitter, QSizePolicy, QFrame, QGraphicsOpacityEffect, QLayout,QShortcut, QToolButton, QActionGroup,QMenu, QStyleFactory
 from PyQt5.QtGui import QFont, QBrush, QColor, QMovie,QKeySequence, QClipboard, QCursor, QIcon, QPalette
@@ -76,7 +77,7 @@ class GenericErroringWorker(GenericWMIWorker):
 Main window for getting info from single computers
 """
 class SinglePCApp(QMainWindow):
-    def __init__(self,parent=None,debug=False,main_wind=None,main_path="",start_name=""):
+    def __init__(self,parent=None,logger=None,main_wind=None,main_path="",start_name=""):
         self.main_wind = main_wind
         self.main_path = main_path
         self.start_name = start_name
@@ -85,7 +86,7 @@ class SinglePCApp(QMainWindow):
         self.prog_counter = ThreadSafeCounter()
         self.settings = DynamicModel("comp_info.cfg",os.getenv("APPDATA") + '\\Single Computer Info\\comp_info.cfg')
         self.hosts_list = {}
-        self.debug = debug
+        self.logger = logger
         self.link_color = "blue"
         self.recent_computers = []
 
@@ -227,9 +228,9 @@ class SinglePCApp(QMainWindow):
         self.inbox.update_list(self.recent_computers)
         if computer_name:
             if self.manual_user and self.manual_pass:
-                c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user=self.manual_user, manual_pass=self.manual_pass,debug=self.debug)
+                c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user=self.manual_user, manual_pass=self.manual_pass,logger=self.logger)
             else:
-                c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user="", manual_pass="", debug=self.debug)
+                c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user="", manual_pass="", logger=self.logger)
             self.prog_counter.increment()
             self.outboxes.append(OutputComputer(parent=self.interior_widget,comp_obj=c,clipboard_callback=self.to_clipboard,all_to_clipboard_callback=self.all_to_clipboard,settings=self.settings,main_path=self.main_path,link_color=self.link_color))
             self.interior_widget_layout.addWidget(self.outboxes[-1])
@@ -1095,7 +1096,14 @@ class OutputComputer(QFrame):
         self.layout.setAlignment(self.delete_frame_btn,Qt.AlignTop)
 
 if __name__ == "__main__":
+    logger = logging.getLogger()
+    handler = logging.StreamHandler()
+    logger.addHandler(handler)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
     ico_path = ""
+
     try:
         if hasattr(sys,'frozen'):
             ico_path = sys.executable
@@ -1112,6 +1120,10 @@ if __name__ == "__main__":
     print(script_path('single_logo.ico'))
     print("+++++")
 
+    file_handler = logging.FileHandler(os.getenv("APPDATA") + '\\Single Computer Info\\comp_info.log',mode='w')
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+
     if not ctypes.windll.UxTheme.IsThemeActive():
         wind.setStyle('Fusion')
 
@@ -1123,5 +1135,15 @@ if __name__ == "__main__":
         uriname = args.filename.split(":")[1]
     except:
         uriname = args.filename
-    app = SinglePCApp(debug=args.debug,main_wind=wind,main_path=os.path.dirname(ico_path),start_name=uriname)
+
+    file_handler.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
+
+    if args.debug:
+        handler.setLevel(logging.DEBUG)
+    else:
+        handler.setLevel(logging.WARNING)
+
+
+    app = SinglePCApp(main_wind=wind,main_path=os.path.dirname(ico_path), logger=logger,start_name=uriname)
     sys.exit(wind.exec_())
