@@ -12,6 +12,7 @@ import operator
 import ctypes
 import argparse
 import socket
+from pathlib import Path
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QAction, QLabel, QBoxLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QPlainTextEdit, QPushButton, QProgressBar, QTabWidget, QFileDialog, QMessageBox, QScrollArea, QStatusBar, QDialog, QTableWidget, QTableWidgetItem, QSplitter, QSizePolicy, QFrame, QGraphicsOpacityEffect, QLayout,QShortcut, QToolButton, QActionGroup,QMenu, QStyleFactory
 from PyQt5.QtGui import QFont, QBrush, QColor, QMovie,QKeySequence, QClipboard, QCursor, QIcon, QPalette
@@ -31,6 +32,18 @@ from ComputerInfoSharedResources.CITime import format_date
 global_blue = "#3366cc"
 global_green = "#00cc00"
 global_red = "#cc3333"
+
+
+def script_path(file_name):
+    """
+    Get absolute path of file. Uses different method depending on if executed by python or pyinstaller/cx_freeze etc.
+    """
+    try:
+        base_path = Path(sys._MEIPASS)
+    except:
+        base_path = Path(__file__).absolute().parent
+
+    return str(Path(base_path).joinpath(file_name))
 
 """Workers to be moved to threads"""
 class GenericWMIWorker(QObject):
@@ -216,7 +229,7 @@ class SinglePCApp(QMainWindow):
             if self.manual_user and self.manual_pass:
                 c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user=self.manual_user, manual_pass=self.manual_pass,debug=self.debug)
             else:
-                c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),debug=self.debug)
+                c = ComputerInfo(input_name=computer_name,count=self.prog_counter.get(),manual_user="", manual_pass="", debug=self.debug)
             self.prog_counter.increment()
             self.outboxes.append(OutputComputer(parent=self.interior_widget,comp_obj=c,clipboard_callback=self.to_clipboard,all_to_clipboard_callback=self.all_to_clipboard,settings=self.settings,main_path=self.main_path,link_color=self.link_color))
             self.interior_widget_layout.addWidget(self.outboxes[-1])
@@ -392,7 +405,7 @@ class OutputComputer(QFrame):
         if self.main_path:
             self.gif = QMovie(self.main_path + "\\loading2.gif")
         else:
-            self.gif = QMovie("loading2.gif")
+            self.gif = QMovie(script_path("loading2.gif"))
         self.placeholder.setMovie(self.gif)
         self.placeholder.setAttribute(Qt.WA_TranslucentBackground,True)
         self.gif.start()
@@ -584,6 +597,7 @@ class OutputComputer(QFrame):
         top_layout = QVBoxLayout()
         top.setLayout(top_layout)
         searchbox = QLineEdit()
+        copy_programs_btn = QPushButton("Copy Programs")
 
         searchbox.setPlaceholderText("Search Programs")
         searchbox.setClearButtonEnabled(True)
@@ -591,8 +605,18 @@ class OutputComputer(QFrame):
         table = DialogTable(top,['Name','Date','Version'])
 
         top_layout.addWidget(searchbox)
+        top_layout.addWidget(copy_programs_btn)
         top_layout.addWidget(table)
         #top_layout.setAlignment(table,Qt.AlignTop)
+
+        def copy_programs():
+            clip = QApplication.clipboard()
+            clip_data = ""
+            for p in programs_list:
+                clip_data += "\n%s" % p.name
+            clip.setText(clip_data)
+
+        copy_programs_btn.clicked.connect(copy_programs)
 
         def find_text(search_term,table,programs_list):
             table.clearContents()
@@ -841,7 +865,7 @@ class OutputComputer(QFrame):
     def get_vbs(self):
         vbs_top = CustomDialog(self)
         vbs_top.setWindowTitle("Install Software")
-        fileform = FileForm(parent=vbs_top,extensionsallowed="VB Files (*.vbs)", title="Choose Script File")
+        fileform = FileForm(parent=vbs_top,extensionsallowed="VBScript, Powershell Script, Python Script (*.vbs *.ps1 *.py)", title="Choose Script File")
         fileform.filelabel.textChanged.connect(lambda:self.comp_obj.set_manual_install_path(fileform.filename))
         vbs_layout = QVBoxLayout()
         vbs_top.setLayout(vbs_layout)
@@ -1084,7 +1108,9 @@ if __name__ == "__main__":
             copyfile(os.path.dirname(ico_path) + '\\comp_info.cfg',os.getenv("APPDATA") + '\\Single Computer Info\\comp_info.cfg')
     except Exception as e: print(e)
     wind = QApplication(sys.argv)
-    wind.setWindowIcon(QIcon('single_logo.ico'))
+    wind.setWindowIcon(QIcon(script_path('single_logo.ico')))
+    print(script_path('single_logo.ico'))
+    print("+++++")
 
     if not ctypes.windll.UxTheme.IsThemeActive():
         wind.setStyle('Fusion')
